@@ -37,3 +37,4 @@ Thumbs.db
 postgres_data/
 minio_data/
 grafana_data/
+venv/

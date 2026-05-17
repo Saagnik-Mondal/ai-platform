@@ -19,10 +19,16 @@ services:
       POSTGRES_MULTIPLE_DATABASES: mlflow
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
-      - ./db/create-mlflow-db.sh:/docker-entrypoint-initdb.d/00-create-mlflow-db.sh
+      - ./db:/docker-entrypoint-initdb.d-src:ro
     ports:
       - "5432:5432"
+    entrypoint: >
+      bash -c "
+      cp /docker-entrypoint-initdb.d-src/create-mlflow-db.sh /docker-entrypoint-initdb.d/00-create-mlflow-db.sh 2>/dev/null;
+      cp /docker-entrypoint-initdb.d-src/init.sql /docker-entrypoint-initdb.d/01-init.sql 2>/dev/null;
+      chmod +x /docker-entrypoint-initdb.d/*.sh 2>/dev/null;
+      exec docker-entrypoint.sh postgres
+      "
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -181,17 +187,21 @@ services:
     image: prom/prometheus:latest
     container_name: sentinel-prometheus
     volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus:/etc/prometheus-src:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
+    entrypoint: >
+      /bin/sh -c "
+      cp /etc/prometheus-src/prometheus.yml /etc/prometheus/prometheus.yml;
+      exec /bin/prometheus
+      --config.file=/etc/prometheus/prometheus.yml
+      --storage.tsdb.path=/prometheus
+      --web.console.libraries=/etc/prometheus/console_libraries
+      --web.console.templates=/etc/prometheus/consoles
+      --storage.tsdb.retention.time=30d
+      --web.enable-lifecycle
+      "
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 10s
@@ -218,7 +228,12 @@ services:
       GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning-src:ro
+    entrypoint: >
+      /bin/sh -c "
+      cp -r /etc/grafana/provisioning-src/* /etc/grafana/provisioning/ 2>/dev/null || true;
+      exec /run.sh
+      "
     ports:
       - "3000:3000"
     healthcheck:

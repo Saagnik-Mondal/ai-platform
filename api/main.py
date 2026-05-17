@@ -107,6 +107,16 @@ Instrumentator(
 ).instrument(app).expose(app, endpoint="/metrics")
 
 
+@app.get("/", tags=["System"])
+async def root():
+    """Root endpoint providing basic API information."""
+    return {
+        "name": "ML Sentinel API",
+        "status": "online",
+        "documentation": "/docs",
+        "health_check": "/health"
+    }
+
 # ──────────────────────────────────────────────
 # Prediction Endpoints
 # ──────────────────────────────────────────────

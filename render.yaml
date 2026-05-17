@@ -1,0 +1,99 @@
+# ================================================
+# Render.yaml — Blueprint for Render Cloud Deployment
+# https://render.com/docs/blueprint-spec
+# ================================================
+# 
+# Deploy with: Connect this repo on Render Dashboard
+# or use the Render CLI: render blueprint launch
+#
+# Note: For the full platform, you'll need:
+#   - Render PostgreSQL (managed)
+#   - Render Web Service (FastAPI API)
+#   - External MLflow (self-hosted or managed)
+#   - Prometheus + Grafana (separate services or cloud-managed)
+# ================================================
+
+services:
+  # ------------------------------------------------
+  # FastAPI Inference API — Main Web Service
+  # ------------------------------------------------
+  - type: web
+    name: ml-sentinel-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ml-sentinel-db
+          property: connectionString
+      - key: MLFLOW_TRACKING_URI
+        sync: false  # Set manually after MLflow is deployed
+      - key: MLFLOW_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: MODEL_NAME
+        value: fraud-detector
+      - key: DRIFT_CHECK_INTERVAL_MINUTES
+        value: "10"
+      - key: DRIFT_THRESHOLD
+        value: "0.5"
+      - key: REFERENCE_DATA_SIZE
+        value: "5000"
+      - key: CURRENT_DATA_WINDOW
+        value: "1000"
+      - key: RETRAIN_MIN_SAMPLES
+        value: "500"
+      - key: RETRAIN_IMPROVEMENT_THRESHOLD
+        value: "0.01"
+
+  # ------------------------------------------------
+  # MLflow Tracking Server
+  # ------------------------------------------------
+  - type: web
+    name: ml-sentinel-mlflow
+    runtime: docker
+    dockerfilePath: ./mlflow/Dockerfile
+    dockerContext: ./mlflow
+    plan: starter
+    region: oregon
+    envVars:
+      - key: MLFLOW_BACKEND_URI
+        fromDatabase:
+          name: ml-sentinel-mlflow-db
+          property: connectionString
+      - key: MLFLOW_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+
+databases:
+  # ------------------------------------------------
+  # PostgreSQL — Prediction Logs + App Data
+  # ------------------------------------------------
+  - name: ml-sentinel-db
+    plan: starter
+    region: oregon
+    databaseName: ml_sentinel
+    user: sentinel
+    ipAllowList: []  # Allow all (managed by Render)
+    postgresMajorVersion: "16"
+
+  # ------------------------------------------------
+  # PostgreSQL — MLflow Backend Store
+  # ------------------------------------------------
+  - name: ml-sentinel-mlflow-db
+    plan: starter
+    region: oregon
+    databaseName: mlflow
+    user: mlflow
+    ipAllowList: []
+    postgresMajorVersion: "16"

@@ -1,0 +1,39 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Data
+data/*.csv
+data/*.gz
+*.csv
+!db/*.sql
+
+# ML artifacts
+*.pkl
+*.joblib
+mlruns/
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Volumes
+postgres_data/
+minio_data/
+grafana_data/

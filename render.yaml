@@ -22,7 +22,7 @@ services:
     runtime: docker
     dockerfilePath: ./api/Dockerfile
     dockerContext: ./api
-    plan: starter
+    plan: free
     region: oregon
     healthCheckPath: /health
     envVars:
@@ -31,13 +31,7 @@ services:
           name: ml-sentinel-db
           property: connectionString
       - key: MLFLOW_TRACKING_URI
-        sync: false  # Set manually after MLflow is deployed
-      - key: MLFLOW_S3_ENDPOINT_URL
-        sync: false
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
+        value: "http://ml-sentinel-mlflow:10000" # Internal Render DNS (replace with external if needed)
       - key: MODEL_NAME
         value: fraud-detector
       - key: DRIFT_CHECK_INTERVAL_MINUTES
@@ -61,37 +55,38 @@ services:
     runtime: docker
     dockerfilePath: ./mlflow/Dockerfile
     dockerContext: ./mlflow
-    plan: starter
+    plan: free
     region: oregon
+    dockerCommand: >
+      mlflow server
+      --backend-store-uri $MLFLOW_BACKEND_URI
+      --serve-artifacts
+      --artifacts-destination /app/mlruns
+      --host 0.0.0.0
+      --port 10000
     envVars:
       - key: MLFLOW_BACKEND_URI
         fromDatabase:
           name: ml-sentinel-mlflow-db
           property: connectionString
-      - key: MLFLOW_S3_ENDPOINT_URL
-        sync: false
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
 
 databases:
   # ------------------------------------------------
   # PostgreSQL — Prediction Logs + App Data
   # ------------------------------------------------
   - name: ml-sentinel-db
-    plan: starter
+    plan: free
     region: oregon
     databaseName: ml_sentinel
     user: sentinel
-    ipAllowList: []  # Allow all (managed by Render)
+    ipAllowList: []
     postgresMajorVersion: "16"
 
   # ------------------------------------------------
   # PostgreSQL — MLflow Backend Store
   # ------------------------------------------------
   - name: ml-sentinel-mlflow-db
-    plan: starter
+    plan: free
     region: oregon
     databaseName: mlflow
     user: mlflow
